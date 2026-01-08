@@ -1,0 +1,82 @@
+
+import { GoogleGenAI } from "@google/genai";
+
+const AFFILIATE_LINK = "https://app.monetizze.com.br/r/AZF25661885/?u=NB82502";
+
+const SYSTEM_INSTRUCTION = `
+Você é o Consultor Sênior de Vendas do Ozenvita. Estilo Pablo Marçal: autoritário, focado em resultados e "desbloqueio".
+Seu objetivo é fechar vendas no WhatsApp.
+
+GATILHOS ATIVOS:
+- FRETE GRÁTIS hoje para todo o Brasil.
+- Promoção por tempo limitado (últimos kits).
+- Depoimentos reais de transformação de energia e saúde.
+
+REGRAS DE CONVERSA:
+1. Comece sempre criando rapport.
+2. Identifique por que o cliente ainda não comprou.
+3. Se perguntar preço ou link, envie o link oficial com ênfase no Frete Grátis: ${AFFILIATE_LINK}
+4. Use emojis (🚀, 🔥, ✅).
+5. Se o cliente estiver indeciso, fale sobre o "custo de não fazer nada".
+
+FORMATO DE RESPOSTA:
+Suas respostas devem ser curtas e diretas, ideais para ler no WhatsApp.
+`;
+
+export default async function handler(req: any, res: any) {
+  // Configuração básica de CORS
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Use POST' });
+  }
+
+  const userMessage = req.body.message || req.body.query || req.body.text || "";
+
+  if (!userMessage) {
+    return res.status(200).json({ 
+      replies: [{ text: "Opa! Estou aqui para te ajudar a garantir seu Ozenvita. Qual sua maior dúvida hoje? 🚀" }] 
+    });
+  }
+
+  try {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+    
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: userMessage,
+      config: {
+        systemInstruction: SYSTEM_INSTRUCTION,
+        temperature: 0.8,
+        topP: 0.9,
+      },
+    });
+
+    const botReply = response.text || "Foco na sua saúde! Vamos garantir seu kit com frete grátis hoje?";
+    
+    // Resposta exata para o app AutoResponder para WA
+    return res.status(200).json({ 
+      replies: [
+        { 
+          text: botReply 
+        }
+      ] 
+    });
+
+  } catch (error: any) {
+    console.error("Erro Crítico na API:", error);
+    return res.status(200).json({ 
+      replies: [
+        { 
+          text: "Devido ao sucesso do Ozenvita, nosso sistema está congestionado! 🔥 Mas já te respondo: o que você precisa para garantir sua saúde hoje?" 
+        }
+      ] 
+    });
+  }
+}
